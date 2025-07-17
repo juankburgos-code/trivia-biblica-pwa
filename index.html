@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trivia Bíblica Geográfica (PWA)</title>
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#00686c" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+
+  <style>
+    body { background-color: #00686c; color: white; }
+    .color2 { background-color: #32c2b9; }
+    .color3 { background-color: #edecb3; color: #000; }
+    .color4 { background-color: #fad928; color: #000; }
+    .color5 { background-color: #ff9915; }
+
+    .player {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      position: absolute;
+      border: 2px solid white;
+      box-shadow: 0 0 4px rgba(0,0,0,.5);
+      transition: all .5s ease;
+    }
+    .player1 { background: #ef4444; }
+    .player2 { background: #3b82f6; }
+    .player3 { background: #10b981; }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 5px #fff, 0 0 10px currentColor; }
+      50% { box-shadow: 0 0 15px #fff, 0 0 30px currentColor; }
+      100% { box-shadow: 0 0 5px #fff, 0 0 10px currentColor; }
+    }
+    .bar-glow { animation: pulseGlow 1.5s infinite; }
+  </style>
+</head>
+<body class="min-h-screen font-sans">
+
+<!-- Modal bienvenida -->
+<div id="welcomeModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+  <div class="color2 rounded-xl p-6 max-w-md mx-4 text-center">
+    <h1 class="text-2xl font-bold mb-2">Trivia Bíblica: Geografía Sagrada</h1>
+    <p class="mb-4 text-sm">Explora la geografía sagrada mientras aprendes sobre la vida de Jesús.</p>
+    <button onclick="startGame()" class="color4 text-black px-6 py-3 rounded-lg font-bold w-full hover:bg-yellow-400 transition">Comenzar</button>
+  </div>
+</div>
+
+<!-- Modal pregunta -->
+<div id="questionModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+  <div class="color2 rounded-xl p-6 max-w-lg w-full mx-4">
+    <div class="flex justify-between items-center mb-3">
+      <h2 id="questionTitle" class="text-lg font-bold"></h2>
+      <div id="timer" class="color4 text-black px-3 py-1 rounded-full font-bold text-lg">20</div>
+    </div>
+    <p id="questionText" class="mb-3"></p>
+    <div id="pointsBar" class="w-full h-5 rounded-full mb-2"></div>
+    <div id="options" class="space-y-2"></div>
+  </div>
+</div>
+
+<!-- Modal final -->
+<div id="finalModal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+  <div class="color2 rounded-xl p-6 max-w-md w-full mx-4 text-center">
+    <h2 class="text-xl font-bold mb-4">¡Juego terminado!</h2>
+    <div id="finalScores" class="mb-4"></div>
+    <button onclick="downloadPDF()" class="color4 text-black px-6 py-3 rounded-lg font-bold w-full mb-2">Descargar PDF</button>
+    <button onclick="restartGame()" class="color5 text-white px-6 py-3 rounded-lg font-bold w-full">Jugar de nuevo</button>
+  </div>
+</div>
+
+<div class="container mx-auto p-4">
+  <h1 class="text-2xl font-bold text-center mb-4">Trivia Bíblica (PWA)</h1>
+
+  <!-- Jugadores -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+    <div class="color2 rounded-lg p-3 text-center">
+      <h3 class="font-bold">Jugador 1 ❤️ <span id="lives1">3</span></h3>
+      <p>Puntos: <span id="score1">0</span></p>
+      <div class="w-full bg-gray-300 rounded-full h-2 mt-1"><div id="progress1" class="color5 h-2 rounded-full"></div></div>
+    </div>
+    <div class="color2 rounded-lg p-3 text-center">
+      <h3 class="font-bold">Jugador 2 💙 <span id="lives2">3</span></h3>
+      <p>Puntos: <span id="score2">0</span></p>
+      <div class="w-full bg-gray-300 rounded-full h-2 mt-1"><div id="progress2" class="color5 h-2 rounded-full"></div></div>
+    </div>
+    <div class="color2 rounded-lg p-3 text-center">
+      <h3 class="font-bold">Jugador 3 💚 <span id="lives3">3</span></h3>
+      <p>Puntos: <span id="score3">0</span></p>
+      <div class="w-full bg-gray-300 rounded-full h-2 mt-1"><div id="progress3" class="color5 h-2 rounded-full"></div></div>
+    </div>
+  </div>
+
+  <!-- Tablero -->
+  <div class="grid grid-cols-8 gap-1 mb-4" id="board"></div>
+
+  <div class="text-center">
+    <button onclick="rollDice()" class="color4 text-black px-6 py-3 rounded-lg font-bold">Tirar dado</button>
+    <p class="mt-2">Turno: Jugador <span id="currentPlayer">1</span></p>
+  </div>
+</div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+// ===== CONFIGURACIÓN =====
+const boardSize = 40;
+const cellTypes = {
+  0:  { type: 'start', color: 'bg-emerald-600', name: 'Inicio' },
+  5:  { type: 'jesus', color: 'bg-sky-600', name: 'El País de Jesús' },
+  10: { type: 'bible', color: 'bg-amber-500', name: 'Búsqueda Bíblica' },
+  15: { type: 'multiplier', color: 'bg-rose-500', name: 'Multiplicador' },
+  20: { type: 'jesus', color: 'bg-sky-600', name: 'El País de Jesús' },
+  25: { type: 'challenge', color: 'bg-purple-600', name: 'Prueba Difícil' },
+  30: { type: 'bible', color: 'bg-amber-500', name: 'Búsqueda Bíblica' },
+  35: { type: 'jesus', color: 'bg-sky-600', name: 'El País de Jesús' },
+  39: { type: 'finish', color: 'bg-red-600', name: 'Meta' }
+};
+
+// ===== PREGUNTAS (50 reales) =====
+const questions = {
+  jesus: [
+    { question: "¿Qué significa la palabra Palestina?", options: ["Tierra de los filisteos", "Tierra de los hebreos", "Tierra de los samaritanos", "Tierra de los cananeos"], correct: 0, points: 200 },
+    { question: "¿Qué nombres ha recibido Palestina a lo largo de la historia?", options: ["Canaán, Israel, Judea, Tierra Santa", "Egipto, Canaán, Babilonia, Jerusalén", "Canaán, Tiro, Samaría, Galilea", "Judá, Siria, Líbano, Mesopotamia"], correct: 0, points: 250 },
+    { question: "¿Cuáles son los límites geográficos del país de Jesús?", options: ["Mediterráneo, Siria, desierto de Arabia, península del Sinaí", "Éufrates, Mar Rojo, Sinaí, Mesopotamia", "Sinaí, Persia, Jordania, Mar de Galilea", "Mar Muerto, Babilonia, Nazaret, Jerusalén"], correct: 0, points: 300 },
+    { question: "¿Cuáles son las tres regiones naturales de Palestina?", options: ["Llanura costera, zona montañosa, depresión del río Jordán", "Llanura oriental, desierto, zona minera", "Altiplano, costa del Sinaí, región templada", "Zona volcánica, tierras altas, valle del Nilo"], correct: 0, points: 250 },
+    { question: "¿Qué significa la palabra Zelotas?", options: ["Celosos de Dios", "Seguidores de Moisés", "Santos de Judea", "Guerreros del Sinaí"], correct: 0, points: 200 },
+    { question: "¿Qué significa la palabra Sanedrín?", options: ["Consejo o 'sentarse juntos'", "Asamblea de guerreros", "Templo sagrado", "Ley divina"], correct: 0, points: 200 },
+    { question: "¿Qué se celebra en la fiesta de la Pascua?", options: ["La liberación del Éxodo", "La creación del mundo", "El nacimiento de Moisés", "El pacto con Abraham"], correct: 0, points: 300 },
+    { question: "¿Qué región heredó Filipo de Herodes el Grande?", options: ["Iturea y Traconítide", "Judea y Samaría", "Galilea y Perea", "Cesarea y Belén"], correct: 0, points: 250 },
+    { question: "¿Qué caracterizaba a los samaritanos?", options: ["Aceptaban solo el Pentateuco y tenían su templo en Garizín", "Seguían toda la Ley y adoraban en Jerusalén", "Eran descendientes directos de David", "Vivían aislados en el desierto"], correct: 0, points: 300 },
+    { question: "¿Qué regiones heredó Arquelao?", options: ["Judea y Samaría", "Galilea y Transjordania", "Nazaret y Caná", "Belén y Cafarnaún"], correct: 0, points: 250 },
+    { question: "¿De dónde era originario Jesús?", options: ["Nazaret", "Jerusalén", "Belén", "Cafarnaún"], correct: 0, points: 200 },
+    { question: "¿Por qué llamaban a Galilea 'el distrito de los ateos'?", options: ["Por la fusión con extranjeros no judíos", "Porque no existían sinagogas", "Por la falta de sacerdotes", "Porque rechazaban la Ley"], correct: 0, points: 250 },
+    { question: "¿Quién fue Herodes el Grande?", options: ["Rey vasallo nombrado por Roma", "Profeta del templo", "Escriba fariseo", "Gobernador de Siria"], correct: 0, points: 300 },
+    { question: "¿Cuál era la importancia religiosa de Judea?", options: ["Tenía el único templo judío", "Era la ciudad donde vivió Moisés", "Allí nació Jesús", "Estaba cerca del mar Rojo"], correct: 0, points: 300 },
+    { question: "¿Qué se celebra en la fiesta de Pentecostés?", options: ["El don de la Ley en el Sinaí", "El nacimiento de Jesús", "La creación del templo", "La entrada a Jerusalén"], correct: 0, points: 350 },
+    { question: "¿Qué representa el templo para los judíos?", options: ["La presencia de Yahvé", "Un símbolo de guerra", "Un lugar turístico", "Una fortaleza romana"], correct: 0, points: 400 },
+    { question: "¿Quiénes eran los Saduceos?", options: ["Clase alta, aristocracia sacerdotal conservadora", "Hombres pobres seguidores de Juan", "Esenios armados", "Marginados de la ley"], correct: 0, points: 350 },
+    { question: "¿Quiénes formaban parte de los marginados?", options: ["Publicanos, leprosos, gentiles y pecadores públicos", "Escribas y fariseos", "Romanos y soldados", "Profetas y pastores"], correct: 0, points: 300 },
+    { question: "¿Cuál era el lugar principal de oración de los judíos?", options: ["La sinagoga", "El templo", "El monte Garizín", "El atrio del mercado"], correct: 0, points: 250 },
+    { question: "¿Quién era responsable del templo y el Sanedrín?", options: ["El Sumo Sacerdote", "El emperador romano", "El fariseo mayor", "El escriba del templo"], correct: 0, points: 300 },
+    { question: "¿Quiénes explicaban y adaptaban la Ley?", options: ["Los escribas", "Los fariseos", "Los saduceos", "Los zelotas"], correct: 0, points: 250 },
+    { question: "¿Qué fiesta recordaba la estancia en el desierto?", options: ["Fiesta de las Tiendas", "Pascua", "Pentecostés", "Fiesta del Jordán"], correct: 0, points: 300 },
+    { question: "¿Qué significa la palabra Fariseo?", options: ["Separado", "Puro", "Guardián", "Maestro"], correct: 0, points: 200 },
+    { question: "¿Qué condición era necesaria para ser sacerdote?", options: ["Pertenecer a la tribu de Leví", "Nacer en Galilea", "Ser hijo del sumo sacerdote", "Tener estudios en el templo"], correct: 0, points: 200 },
+    { question: "¿A quién se le entregó la Ley de Dios?", options: ["A Moisés", "A Abraham", "A Jesús", "A David"], correct: 0, points: 400 },
+    { question: "¿Cómo se dividía la ceremonia judía en la sinagoga?", options: ["Shemá, lectura de la Ley, profetas y homilía", "Oración, canto y cena", "Predicación, danza y sacrificio", "Bendición, pacto y recogida de limosna"], correct: 0, points: 350 },
+    { question: "¿Qué región heredó Herodes Antipas?", options: ["Galilea y Perea", "Judea y Samaría", "Cesarea y Traconítide", "Jerusalén y Siquén"], correct: 0, points: 300 },
+    { question: "¿Quién tenía el poder de condenar a muerte?", options: ["El procurador romano", "El sumo sacerdote", "El Sanedrín", "El fariseo mayor"], correct: 0, points: 400 },
+    { question: "¿Ciudades importantes de Judea eran...?", options: ["Jerusalén, Hebrón, Belén, Emaús", "Nazaret, Cafarnaún, Caná", "Samaría, Siquén, Garizín", "Corozaín, Tiro, Sidón"], correct: 0, points: 350 },
+    { question: "¿Ciudades importantes de Samaría eran...?", options: ["Samaría, Siquén, Cesarea", "Jerusalén, Belén, Jericó", "Nazaret, Caná, Cafarnaún", "Garizín, Hebrón, Betania"], correct: 0, points: 300 },
+    { question: "¿Ciudades importantes de Galilea eran...?", options: ["Nazaret, Cafarnaún, Betsaida", "Jerusalén, Siquén, Samaría", "Belén, Betania, Emaús", "Hebrón, Tiro, Sidón"], correct: 0, points: 350 },
+    { question: "¿Quiénes eran los sumos sacerdotes de la época de Jesús?", options: ["Anás y Caifás", "Pedro y Juan", "Felipe y Santiago", "Nicodemo y Zacarías"], correct: 0, points: 300 },
+    { question: "¿Cuántos días duraba la fiesta de la Pascua?", options: ["Ocho días", "Tres días", "Cuarenta días", "Doce días"], correct: 0, points: 250 },
+    { question: "¿Cuál era la práctica religiosa más sagrada para los judíos?", options: ["El sábado", "El diezmo", "La oración de noche", "La circuncisión"], correct: 0, points: 400 },
+    { question: "¿Qué grupo era nacionalista y hostil a los romanos?", options: ["Los fariseos", "Los esenios", "Los samaritanos", "Los publicanos"], correct: 0, points: 250 },
+    { question: "¿Quiénes eran los esenios?", options: ["Monjes en Qumrán que esperaban dos Mesías", "Fariseos en Jerusalén", "Mercaderes del templo", "Soldados samaritanos"], correct: 0, points: 350 },
+    { question: "¿Cómo eran tratadas las mujeres en la sociedad judía?", options: ["Como menores de edad y posesiones del hombre", "Como líderes religiosas", "Como maestras del templo", "Como herederas de la Ley"], correct: 0, points: 400 },
+    { question: "¿Cómo definió Roma a los hijos de Herodes?", options: ["Gobernadores, no reyes", "Reyes ungidos", "Emperadores locales", "Príncipes religiosos"], correct: 0, points: 350 },
+    { question: "¿Cuántos miembros tenía el Sanedrín?", options: ["71", "50", "120", "40"], correct: 0, points: 250 },
+    { question: "¿Quiénes eran los publicanos?", options: ["Recaudadores de impuestos", "Escribas del templo", "Sacerdotes menores", "Fariseos comerciantes"], correct: 0, points: 300 },
+    { question: "¿A quiénes se llamaba gentiles?", options: ["A los que no eran judíos", "A los fariseos", "A los samaritanos", "A los marginados"], correct: 0, points: 250 },
+    { question: "¿Qué grupo era considerado la gran masa del país?", options: ["El pueblo", "Los esenios", "Los sacerdotes", "Los fariseos"], correct: 0, points: 250 },
+    { question: "¿Quiénes vivían en Qumrán?", options: ["Los esenios", "Los samaritanos", "Los publicanos", "Los fariseos"], correct: 0, points: 350 },
+    { question: "¿De qué clases se elegían los del Sanedrín?", options: ["Ancianos, sumos sacerdotes y escribas", "Fariseos, mujeres y profetas", "Guerreros, reyes y mercaderes", "Esenios, samaritanos y publicanos"], correct: 0, points: 300 },
+    { question: "¿Cuál era la importancia política de Judea?", options: ["Sede del Sanedrín bajo tutela romana", "Capital del Imperio Romano", "Centro de comercio internacional", "Refugio de los fariseos"], correct: 0, points: 350 },
+    { question: "¿Quién era el emperador cuando nació Jesús?", options: ["Octavio Augusto", "Tiberio César", "Nerón", "Herodes Antipas"], correct: 0, points: 300 },
+    { question: "¿Cuál era la importancia económica de Judea?", options: ["El comercio de peregrinaciones", "La pesca del Jordán", "El oro del templo", "Las minas del Sinaí"], correct: 0, points: 300 },
+    { question: "¿Leprosos, endemoniados y ciegos eran considerados...?", options: ["Marginados", "Fariseos", "Esenios", "Publicanos"], correct: 0, points: 300 },
+    { question: "¿A qué clase social pertenecían los fariseos?", options: ["Clase media con gran influencia", "Alta aristocracia", "Pueblo sin educación", "Guerreros del templo"], correct: 0, points: 250 },
+    { question: "¿Dónde estaba el templo de los samaritanos?", options: ["Monte Garizín, en Siquén", "Monte Sinaí, en Nazaret", "Templo de Jerusalén", "Monte Tabor, en Belén"], correct: 0, points: 350 }
+  ]
+};
+
+// ===== VARIABLES =====
+let currentPlayer = 1;
+let players = [{ pos: 0, score: 0, lives: 3 }, { pos: 0, score: 0, lives: 3 }, { pos: 0, score: 0, lives: 3 }];
+let timer, currentQuestion;
+
+// ===== FUNCIONES =====
+function startGame() {
+  document.getElementById('welcomeModal').classList.add('hidden');
+  createBoard();
+  updateDisplay();
+}
+function createBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for (let i = 0; i < boardSize; i++) {
+    const cell = document.createElement('div');
+    const type = cellTypes[i] || { type: 'normal', color: 'bg-teal-700', name: 'Avanza' };
+    cell.className = `${type.color} rounded text-white text-xs flex items-center justify-center h-12`;
+    cell.dataset.pos = i;
+    cell.innerHTML = type.name;
+    board.appendChild(cell);
+  }
+  players.forEach((_, i) => {
+    const el = document.createElement('div');
+    el.className = `player player${i + 1}`;
+    el.id = `player${i + 1}`;
+    document.querySelector('[data-pos="0"]').appendChild(el);
+  });
+}
+function rollDice() {
+  const dice = Math.floor(Math.random() * 6) + 1;
+  const newPos = Math.min(players[currentPlayer - 1].pos + dice, boardSize - 1);
+  players[currentPlayer - 1].pos = newPos;
+  updatePlayerPos(currentPlayer - 1);
+  setTimeout(() => handleCellAction(newPos), 500);
+}
+function updatePlayerPos(i) {
+  const cell = document.querySelector(`[data-pos="${players[i].pos}"]`);
+  const player = document.getElementById(`player${i + 1}`);
+  cell.appendChild(player);
+}
+function handleCellAction(pos) {
+  const type = cellTypes[pos]?.type || 'normal';
+  switch (type) {
+    case 'jesus': showQuestion('jesus'); break;
+    case 'bible': showQuestion('bible'); break;
+    case 'multiplier':
+      players[currentPlayer - 1].score *= 2;
+      updateDisplay(); nextPlayer(); break;
+    case 'challenge':
+      players[currentPlayer - 1].pos = Math.max(0, pos - 4);
+      updatePlayerPos(currentPlayer - 1);
+      nextPlayer(); break;
+    case 'finish': endGame(); break;
+    default:
+      players[currentPlayer - 1].score += 100;
+      updateDisplay(); nextPlayer();
+  }
+}
+function showQuestion(type) {
+  const pool = questions[type];
+  const q = pool[Math.floor(Math.random() * pool.length)];
+  q.points = type === 'jesus' ? 200 + Math.floor(Math.random() * 101) : 300 + Math.floor(Math.random() * 201);
+  currentQuestion = q;
+  document.getElementById('questionTitle').textContent = type === 'jesus' ? 'El País de Jesús' : 'Búsqueda Bíblica';
+  document.getElementById('questionText').textContent = q.question;
+  const bar = document.getElementById('pointsBar');
+  bar.className = `bar-glow h-5 rounded-full`;
+  bar.style.width = `${(q.points / 500) * 100}%`;
+  if (q.points <= 200) bar.classList.add('bg-emerald-400');
+  else if (q.points <= 300) bar.classList.add('bg-sky-400');
+  else if (q.points <= 400) bar.classList.add('bg-amber-400');
+  else bar.classList.add('bg-rose-500');
+  const opts = document.getElementById('options');
+  opts.innerHTML = '';
+  q.options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'w-full text-left p-2 bg-white/20 rounded hover:bg-white/40';
+    btn.textContent = opt;
+    btn.onclick = () => checkAnswer(idx);
+    opts.appendChild(btn);
+  });
+  document.getElementById('questionModal').classList.remove('hidden');
+  let time = 20;
+  const timerEl = document.getElementById('timer');
+  timerEl.textContent = time;
+  timerEl.classList.remove('text-red-500', 'animate-pulse');
+  timer = setInterval(() => {
+    time--;
+    timerEl.textContent = time;
+    if (time <= 5) timerEl.classList.add('text-red-500', 'animate-pulse');
+    if (time <= 0) { clearInterval(timer); checkAnswer(-1); }
+  }, 1000);
+}
+function checkAnswer(idx) {
+  clearInterval(timer);
+  if (idx === currentQuestion.correct) {
+    players[currentPlayer - 1].score += currentQuestion.points;
+  } else {
+    players[currentPlayer - 1].lives--;
+    if (players[currentPlayer - 1].lives < 0) players[currentPlayer - 1].lives = 0;
+  }
+  updateDisplay();
+  document.getElementById('questionModal').classList.add('hidden');
+  nextPlayer();
+}
+function nextPlayer() {
+  const alive = players.filter(p => p.lives > 0);
+  if (alive.length === 0) { endGame(); return; }
+  do { currentPlayer = currentPlayer === 3 ? 1 : currentPlayer + 1; } while (players[currentPlayer - 1].lives <= 0);
+  document.getElementById('currentPlayer').textContent = currentPlayer;
+}
+function updateDisplay() {
+  for (let i = 0; i < 3; i++) {
+    document.getElementById(`score${i + 1}`).textContent = players[i].score;
+    document.getElementById(`lives${i + 1}`).textContent = players[i].lives;
+    const prog = (players[i].score / 5000) * 100;
+    document.getElementById(`progress${i + 1}`).style.width = `${Math.min(prog, 100)}%`;
+  }
+}
+function endGame() {
+  const winner = players.reduce((m, p, i) => p.score > m.score ? { ...p, idx: i + 1 } : m, { score: -1 });
+  document.getElementById('finalScores').innerHTML = `
+    <p class="mb-2">¡Jugador ${winner.idx} gana con ${winner.score} pts!</p>
+    ${players.map((p, i) => `<p>Jugador ${i + 1}: ${p.score} pts, ${p.lives} vidas</p>`).join('')}
+  `;
+  document.getElementById('finalModal').classList.remove('hidden');
+}
+function downloadPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(18);
+  doc.text('Resultados Trivia Bíblica', 20, 20);
+  doc.setFontSize(12);
+  players.forEach((p, i) => doc.text(`Jugador ${i + 1}: ${p.score} pts, ${p.lives} vidas`, 20, 40 + i * 10));
+  doc.save('trivia-resultados.pdf');
+}
+function restartGame() {
+  players.forEach(p => { p.pos = 0; p.score = 0; p.lives = 3; });
+  currentPlayer = 1;
+  document.getElementById('finalModal').classList.add('hidden');
+  updateDisplay();
+  createBoard();
+}
+</script>
+</body>
+</html>
