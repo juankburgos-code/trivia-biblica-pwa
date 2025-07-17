@@ -1,0 +1,2 @@
+# trivia-biblica-pwa
+JUEGO BIBLICO SUPERLECTORESCTG
